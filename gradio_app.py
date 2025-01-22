@@ -19,7 +19,7 @@ def get_example_img_list():
 def get_example_txt_list():
     print('Loading example txt list ...')
     txt_list = list()
-    for line in open('./assets/example_prompts.txt'):
+    for line in open('./assets/example_prompts.txt', encoding='utf-8'):
         txt_list.append(line.strip())
     return txt_list
 
@@ -47,6 +47,7 @@ def export_mesh(mesh, save_folder, textured=False):
 
 
 def build_model_viewer_html(save_folder, height=660, width=790, textured=False):
+    # Remove first folder from path to make relative path
     if textured:
         related_path = f"./textured_mesh.glb"
         template_name = './assets/modelviewer-textured-template.html'
@@ -56,7 +57,7 @@ def build_model_viewer_html(save_folder, height=660, width=790, textured=False):
         template_name = './assets/modelviewer-template.html'
         output_html_path = os.path.join(save_folder, f'white_mesh.html')
 
-    with open(os.path.join(CURRENT_DIR, template_name), 'r') as f:
+    with open(os.path.join(CURRENT_DIR, template_name), 'r', encoding='utf-8') as f:
         template_html = f.read()
         obj_html = f"""
             <div class="column is-mobile is-centered">
@@ -68,7 +69,7 @@ def build_model_viewer_html(save_folder, height=660, width=790, textured=False):
             </div>
             """
 
-    with open(output_html_path, 'w') as f:
+    with open(output_html_path, 'w', encoding='utf-8') as f:
         f.write(template_html.replace('<model-viewer>', obj_html))
 
     output_html_path = output_html_path.replace(SAVE_DIR + '/', '')
@@ -385,7 +386,7 @@ if __name__ == '__main__':
     # create a static directory to store the static files
     static_dir = Path('./gradio_cache')
     static_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    app.mount("/static", StaticFiles(directory=static_dir, html=True), name="static")
 
     demo = build_app()
     app = gr.mount_gradio_app(app, demo, path="/")
