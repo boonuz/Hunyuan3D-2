@@ -104,7 +104,7 @@ def _gen_shape(
         start_time = time.time()
         try:
             image = t2i_worker(caption, seed)
-            if return_dict != None:
+            if return_dict is not None:
                 return_dict["image"] = image
         except Exception as e:
             raise gr.Error(f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`.")
@@ -397,7 +397,7 @@ if __name__ == '__main__':
     kwargs = {}
     pipe = offload.extract_models("i23d_worker", i23d_worker)
     pipe.update(  offload.extract_models( "texgen_worker", texgen_worker))
-    if t2i_worker != None:
+    if t2i_worker is not None:
         pipe.update(  offload.extract_models( "t2i_worker", t2i_worker))
         
 
