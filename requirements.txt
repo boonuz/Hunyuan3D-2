@@ -31,3 +31,6 @@ sentencepiece
 gradio
 fastapi
 uvicorn
+gradio_litmodel3d
+tritonclient
+mmgp
