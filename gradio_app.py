@@ -417,7 +417,7 @@ if __name__ == '__main__':
     # create a FastAPI app
     app = FastAPI()
     # create a static directory to store the static files
-    static_dir = Path('./gradio_cache')
+    static_dir = Path(SAVE_DIR).absolute()
     static_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=static_dir, html=True), name="static")
 
