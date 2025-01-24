@@ -343,7 +343,7 @@ if __name__ == '__main__':
     parser.add_argument('--host', type=str, default='0.0.0.0')
     parser.add_argument('--cache-path', type=str, default='gradio_cache')
     parser.add_argument('--enable_t23d', action='store_true')
-    parser.add_argument('--profile', type=str, default="3")
+    parser.add_argument('--profile', type=str, default="4")
     parser.add_argument('--verbose', type=str, default="1")
 
     args = parser.parse_args()
