@@ -93,7 +93,7 @@ def _gen_shape(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum = 40000,
+    max_facenum=40000,  # Added parameter, with a default
 ):
     if caption: print('prompt is', caption)
     save_folder = gen_save_folder()
@@ -106,7 +106,7 @@ def _gen_shape(
         try:
             image = t2i_worker(caption)
         except Exception as e:
-            raise gr.Error(f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`.")
+            raise gr.Error(f"Text to 3D is disable.  Please enable it by `python gradio_app.py --enable_t23d`.")
         time_meta['text2image'] = time.time() - start_time
 
     image.save(os.path.join(save_folder, 'input.png'))
@@ -134,7 +134,7 @@ def _gen_shape(
 
     mesh = FloaterRemover()(mesh)
     mesh = DegenerateFaceRemover()(mesh)
-    mesh = FaceReducer()(mesh, max_facenum=max_facenum)
+    mesh = FaceReducer()(mesh, max_facenum=max_facenum)  # Pass max_facenum here
 
     stats['number_of_faces'] = mesh.faces.shape[0]
     stats['number_of_vertices'] = mesh.vertices.shape[0]
@@ -153,7 +153,7 @@ def generation_all(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum = 40000
+    max_facenum=40000,  # Added parameter
 ):
     mesh, image, save_folder = _gen_shape(
         caption,
@@ -163,7 +163,7 @@ def generation_all(
         seed=seed,
         octree_resolution=octree_resolution,
         check_box_rembg=check_box_rembg,
-        max_facenum=max_facenum
+        max_facenum=max_facenum,  # Pass max_facenum
     )
 
     path = export_mesh(mesh, save_folder, textured=False)
@@ -189,7 +189,7 @@ def shape_generation(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum = 40000
+    max_facenum=40000,  # Added parameter
 ):
     mesh, image, save_folder = _gen_shape(
         caption,
@@ -199,7 +199,7 @@ def shape_generation(
         seed=seed,
         octree_resolution=octree_resolution,
         check_box_rembg=check_box_rembg,
-        max_facenum=max_facenum
+        max_facenum=max_facenum,  # Pass max_facenum
     )
 
     path = export_mesh(mesh, save_folder, textured=False)
@@ -221,10 +221,10 @@ def build_app():
     Tencent Hunyuan3D Team
     </div>
     <div align="center">
-      <a href="https://github.com/tencent/Hunyuan3D-2">Github Page</a> &ensp; 
-      <a href="http://3d-models.hunyuan.tencent.com">Homepage</a> &ensp;
-      <a href="#">Technical Report</a> &ensp;
-      <a href="https://huggingface.co/Tencent/Hunyuan3D-2"> Models</a> &ensp;
+     <a href="https://github.com/tencent/Hunyuan3D-2">Github Page</a> &ensp; 
+     <a href="http://3d-models.hunyuan.tencent.com">Homepage</a> &ensp;
+     <a href="#">Technical Report</a> &ensp;
+     <a href="https://huggingface.co/Tencent/Hunyuan3D-2"> Models</a> &ensp;
     </div>
     """
 
@@ -244,12 +244,14 @@ def build_app():
                                              placeholder='HunyuanDiT will be used to generate image.',
                                              info='Example: A 3D model of a cute cat, white background')
 
+                # --- Add max_facenum_slider and expanded ranges---
                 with gr.Accordion('Advanced Options', open=False):
                     num_steps = gr.Slider(maximum=100, minimum=20, value=30, step=1, label='Inference Steps')
                     octree_resolution = gr.Dropdown([256, 384, 512, 768, 1024], value=256, label='Octree Resolution')
                     cfg_scale = gr.Number(value=5.5, label='Guidance Scale')
-                    max_facenum_slider = gr.Slider(maximum=150000, minimum=20000, value=40000, step=1000, label='Faces')
+                    max_facenum_slider = gr.Slider(maximum=150000, minimum=2000, value=40000, step=1000, label='Faces')  # Added slider
                     seed = gr.Slider(maximum=1e7, minimum=0, value=1234, label='Seed')
+
 
                 with gr.Group():
                     btn = gr.Button(value='Generate Shape Only', variant='primary')
@@ -298,6 +300,8 @@ def build_app():
         if HAS_T2I:
             tab_gt.select(fn=lambda: gr.update(selected='tab_txt_prompt'), outputs=tabs_prompt)
 
+
+        # --- Pass max_facenum_slider to the click handlers ---
         btn.click(
             shape_generation,
             inputs=[
@@ -308,7 +312,7 @@ def build_app():
                 seed,
                 octree_resolution,
                 check_box_rembg,
-                max_facenum_slider
+                max_facenum_slider,  # Add to inputs
             ],
             outputs=[file_out, html_output1]
         ).then(
@@ -326,7 +330,7 @@ def build_app():
                 seed,
                 octree_resolution,
                 check_box_rembg,
-                max_facenum_slider
+                max_facenum_slider,  # Add to inputs
             ],
             outputs=[file_out, file_out2, html_output1, html_output2]
         ).then(
@@ -340,14 +344,18 @@ def build_app():
 if __name__ == '__main__':
     import argparse
 
+    # --- CUDA Availability Check ---
+    if not torch.cuda.is_available():
+        print("WARNING: CUDA is not available.  The application will run on the CPU, which will be significantly slower.")
+        # Consider raising an exception here if GPU is required
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=8080)
     parser.add_argument('--host', type=str, default='0.0.0.0')
     parser.add_argument('--cache-path', type=str, default='gradio_cache')
     parser.add_argument('--enable_t23d', action='store_true')
-    parser.add_argument('--profile', type=str, default="4")
-    parser.add_argument('--verbose', type=str, default="1")
-
+    parser.add_argument('--profile', type=str, default="4")  # Keep original default
+    parser.add_argument('--verbose', type=str, default="1")  # Keep original default
     args = parser.parse_args()
 
     SAVE_DIR = args.cache_path
@@ -360,50 +368,71 @@ if __name__ == '__main__':
     """
 
     INPUT_MESH_HTML = """
-    <div style='height: 490px; width: 100%; border-radius: 8px; 
+    <div style='height: 490px; width: 100%; border-radius: 8px;
     border-color: #e5e7eb; order-style: solid; border-width: 1px;'>
     </div>
     """
     example_is = get_example_img_list()
     example_ts = get_example_txt_list()
 
-    torch.set_default_device("cpu")
+    # --- Load Models Conditionally (as in original) ---
+    HAS_TEXTUREGEN = False
     try:
         from hy3dgen.texgen import Hunyuan3DPaintPipeline
-
         texgen_worker = Hunyuan3DPaintPipeline.from_pretrained('tencent/Hunyuan3D-2')
         HAS_TEXTUREGEN = True
     except Exception as e:
         print(e)
         print("Failed to load texture generator.")
         print('Please refer to the README.md and install the missing requirements to activate it.')
-        HAS_TEXTUREGEN = False
 
     HAS_T2I = False
     if args.enable_t23d:
-        from hy3dgen.text2image import HunyuanDiTPipeline
-
-        t2i_worker = HunyuanDiTPipeline('Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled')
-        HAS_T2I = True
+        try:
+            from hy3dgen.text2image import HunyuanDiTPipeline
+            t2i_worker = HunyuanDiTPipeline('Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled')
+            HAS_T2I = True
+        except Exception as e:
+            print(f"Failed to load text-to-image pipeline: {e}")
+            print("Text-to-image generation will be disabled.")
 
     from hy3dgen.shapegen import FaceReducer, FloaterRemover, DegenerateFaceRemover, \
         Hunyuan3DDiTFlowMatchingPipeline
     from hy3dgen.rembg import BackgroundRemover
 
     rmbg_worker = BackgroundRemover()
-    i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2')
+    # Load i23d_worker (as in original, NO device specified here)
+    i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained('tencent/Hunyuan3D-2', use_safetensors=True)
     floater_remove_worker = FloaterRemover()
     degenerate_face_remove_worker = DegenerateFaceRemover()
     face_reduce_worker = FaceReducer()
 
-    # https://discuss.huggingface.co/t/how-to-serve-an-html-file/33921/2
-    # create a FastAPI app
+
+    # --- Offload Model (EXACTLY as in original) ---
+    profile = int(args.profile)
+    kwargs = {}
+    pipe = offload.extract_models("i23d_worker", i23d_worker)
+    if HAS_TEXTUREGEN:
+        pipe.update(offload.extract_models("texgen_worker", texgen_worker))
+        texgen_worker.models["multiview_model"].pipeline.vae.use_slicing = True  #Keep slicing
+    if HAS_T2I:
+        pipe.update(offload.extract_models("t2i_worker", t2i_worker))
+
+    if profile < 5:
+        kwargs["pinnedMemory"] = "i23d_worker/model"  #As original
+    if profile != 1 and profile != 3: # As original
+        kwargs["budgets"] = {"*": 2200}
+
+    offload.profile(pipe, profile_no=profile, verboseLevel=int(args.verbose), **kwargs)
+
+    # --- NO .to("cuda") calls here ---
+
+    # --- FastAPI and Gradio Setup (as in original)---
     app = FastAPI()
-    # create a static directory to store the static files
     static_dir = Path(SAVE_DIR).absolute()
     static_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=static_dir, html=True), name="static")
 
-    demo = build_app()
+    demo = build_app()  # build_app now includes the slider
     app = gr.mount_gradio_app(app, demo, path="/")
     uvicorn.run(app, host=args.host, port=args.port)
