@@ -93,7 +93,7 @@ def _gen_shape(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum = 40000,
+    max_facenum=40000,
 ):
     if caption: print('prompt is', caption)
     save_folder = gen_save_folder()
@@ -153,7 +153,7 @@ def generation_all(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum = 40000
+    max_facenum=40000
 ):
     mesh, image, save_folder = _gen_shape(
         caption,
@@ -189,7 +189,7 @@ def shape_generation(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum = 40000
+    max_facenum=40000
 ):
     mesh, image, save_folder = _gen_shape(
         caption,
@@ -340,6 +340,11 @@ def build_app():
 if __name__ == '__main__':
     import argparse
 
+    # --- CUDA Availability Check ---
+    if not torch.cuda.is_available():
+        print("WARNING: CUDA is not available.  The application will run on the CPU, which will be significantly slower.")
+        # Consider raising an exception here if GPU is required
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=8080)
     parser.add_argument('--host', type=str, default='0.0.0.0')
@@ -381,10 +386,13 @@ if __name__ == '__main__':
 
     HAS_T2I = False
     if args.enable_t23d:
-        from hy3dgen.text2image import HunyuanDiTPipeline
-
-        t2i_worker = HunyuanDiTPipeline('Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled')
-        HAS_T2I = True
+        try:
+            from hy3dgen.text2image import HunyuanDiTPipeline
+            t2i_worker = HunyuanDiTPipeline('Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled')
+            HAS_T2I = True
+        except Exception as e:
+            print(f"Failed to load text-to-image pipeline: {e}")
+            print("Text-to-image generation will be disabled.")
 
     from hy3dgen.shapegen import FaceReducer, FloaterRemover, DegenerateFaceRemover, \
         Hunyuan3DDiTFlowMatchingPipeline
