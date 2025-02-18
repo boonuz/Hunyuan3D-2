@@ -34,7 +34,7 @@ def gen_save_folder(max_size=60):
         print(f"remove {SAVE_DIR}/{(cur_id + 1) % max_size} success !!!")
     save_folder = f"{SAVE_DIR}/{max(0, cur_id)}"
     os.makedirs(save_folder, exist_ok=True)
-    print(f"mkdir {save_folder} success !!!")
+    print(f"mkdir {save_folder} suceess !!!")
     return save_folder
 
 
@@ -93,7 +93,6 @@ def _gen_shape(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum=40000,
 ):
     if caption: print('prompt is', caption)
     save_folder = gen_save_folder()
@@ -106,7 +105,7 @@ def _gen_shape(
         try:
             image = t2i_worker(caption)
         except Exception as e:
-            raise gr.Error(f"Text to 3D is disabled. Please enable it by restarted the app with `python gradio_app.py --enable_t23d`.")
+            raise gr.Error(f"Text to 3D is disable. Please enable it by `python gradio_app.py --enable_t23d`.")
         time_meta['text2image'] = time.time() - start_time
 
     image.save(os.path.join(save_folder, 'input.png'))
@@ -134,7 +133,7 @@ def _gen_shape(
 
     mesh = FloaterRemover()(mesh)
     mesh = DegenerateFaceRemover()(mesh)
-    mesh = FaceReducer()(mesh, max_facenum=max_facenum)
+    mesh = FaceReducer()(mesh)
 
     stats['number_of_faces'] = mesh.faces.shape[0]
     stats['number_of_vertices'] = mesh.vertices.shape[0]
@@ -152,8 +151,7 @@ def generation_all(
     guidance_scale=7.5,
     seed=1234,
     octree_resolution=256,
-    check_box_rembg=False,
-    max_facenum=40000
+    check_box_rembg=False
 ):
     mesh, image, save_folder = _gen_shape(
         caption,
@@ -162,8 +160,7 @@ def generation_all(
         guidance_scale=guidance_scale,
         seed=seed,
         octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg,
-        max_facenum=max_facenum
+        check_box_rembg=check_box_rembg
     )
 
     path = export_mesh(mesh, save_folder, textured=False)
@@ -189,7 +186,6 @@ def shape_generation(
     seed=1234,
     octree_resolution=256,
     check_box_rembg=False,
-    max_facenum=40000
 ):
     mesh, image, save_folder = _gen_shape(
         caption,
@@ -198,8 +194,7 @@ def shape_generation(
         guidance_scale=guidance_scale,
         seed=seed,
         octree_resolution=octree_resolution,
-        check_box_rembg=check_box_rembg,
-        max_facenum=max_facenum
+        check_box_rembg=check_box_rembg
     )
 
     path = export_mesh(mesh, save_folder, textured=False)
@@ -245,10 +240,9 @@ def build_app():
                                              info='Example: A 3D model of a cute cat, white background')
 
                 with gr.Accordion('Advanced Options', open=False):
-                    num_steps = gr.Slider(maximum=100, minimum=1, value=30, step=1, label='Inference Steps')
-                    octree_resolution = gr.Dropdown([256, 384, 512, 768, 1024], value=256, label='Octree Resolution')
+                    num_steps = gr.Slider(maximum=50, minimum=20, value=30, step=1, label='Inference Steps')
+                    octree_resolution = gr.Dropdown([256, 384, 512], value=256, label='Octree Resolution')
                     cfg_scale = gr.Number(value=5.5, label='Guidance Scale')
-                    max_facenum_slider = gr.Slider(maximum=200000, minimum=20000, value=40000, step=1000, label='Number of Faces')
                     seed = gr.Slider(maximum=1e7, minimum=0, value=1234, label='Seed')
 
                 with gr.Group():
@@ -282,15 +276,15 @@ def build_app():
             gr.HTML("""
             <div style="margin-top: 20px;">
                 <b>Warning: </b>
-                Texture synthesis is disabled due to missing requirements,
-                 please refer to the README.md and install the missing requirements to activate it.
+                Texture synthesis is disable due to missing requirements,
+                 please install requirements following README.md to activate it.
             </div>
             """)
         if not args.enable_t23d:
             gr.HTML("""
             <div style="margin-top: 20px;">
                 <b>Warning: </b>
-                Text to 3D is disabled. Please enable it by restarted the app with `python gradio_app.py --enable_t23d`.
+                Text to 3D is disable. To activate it, please run `python gradio_app.py --enable_t23d`.
             </div>
             """)
 
@@ -308,7 +302,6 @@ def build_app():
                 seed,
                 octree_resolution,
                 check_box_rembg,
-                max_facenum_slider
             ],
             outputs=[file_out, html_output1]
         ).then(
@@ -326,7 +319,6 @@ def build_app():
                 seed,
                 octree_resolution,
                 check_box_rembg,
-                max_facenum_slider
             ],
             outputs=[file_out, file_out2, html_output1, html_output2]
         ).then(
@@ -339,11 +331,6 @@ def build_app():
 
 if __name__ == '__main__':
     import argparse
-
-    # --- CUDA Availability Check ---
-    if not torch.cuda.is_available():
-        print("WARNING: CUDA is not available.  The application will run on the CPU, which will be significantly slower.")
-        # Consider raising an exception here if GPU is required
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', type=int, default=8080)
@@ -381,18 +368,15 @@ if __name__ == '__main__':
     except Exception as e:
         print(e)
         print("Failed to load texture generator.")
-        print('Please refer to the README.md and install the missing requirements to activate it.')
+        print('Please try to install requirements by following README.md')
         HAS_TEXTUREGEN = False
 
     HAS_T2I = False
     if args.enable_t23d:
-        try:
-            from hy3dgen.text2image import HunyuanDiTPipeline
-            t2i_worker = HunyuanDiTPipeline('Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled')
-            HAS_T2I = True
-        except Exception as e:
-            print(f"Failed to load text-to-image pipeline: {e}")
-            print("Text-to-image generation will be disabled.")
+        from hy3dgen.text2image import HunyuanDiTPipeline
+
+        t2i_worker = HunyuanDiTPipeline('Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled')
+        HAS_T2I = True
 
     from hy3dgen.shapegen import FaceReducer, FloaterRemover, DegenerateFaceRemover, \
         Hunyuan3DDiTFlowMatchingPipeline

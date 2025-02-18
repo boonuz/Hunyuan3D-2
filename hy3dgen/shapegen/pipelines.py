@@ -142,7 +142,6 @@ class Hunyuan3DDiTPipeline:
         config_path,
         device='cpu',
         dtype=torch.float16,
-        use_safetensors=None,
         **kwargs,
     ):
         # load config
@@ -150,13 +149,11 @@ class Hunyuan3DDiTPipeline:
             config = yaml.safe_load(f)
 
         # load ckpt
-        if use_safetensors:
-            ckpt_path = ckpt_path.replace('.ckpt', '.safetensors')
         if not os.path.exists(ckpt_path):
             raise FileNotFoundError(f"Model file {ckpt_path} not found")
         logger.info(f"Loading model from {ckpt_path}")
 
-        if use_safetensors:
+        if ckpt_path.endswith('.safetensors'):
             # parse safetensors
             import safetensors.torch
             safetensors_ckpt = safetensors.torch.load_file(ckpt_path, device='cpu')
@@ -168,7 +165,8 @@ class Hunyuan3DDiTPipeline:
                     ckpt[model_name] = {}
                 ckpt[model_name][new_key] = value
         else:
-            ckpt = torch.load(ckpt_path, map_location='cpu')
+            ckpt = torch.load(ckpt_path, map_location='cpu', weights_only=True)
+
         # load model
         from accelerate import init_empty_weights
         with init_empty_weights():
@@ -210,25 +208,21 @@ class Hunyuan3DDiTPipeline:
         **kwargs,
     ):
         original_model_path = model_path
-        # try local path
-        base_dir = os.environ.get('HY3DGEN_MODELS', '~/.cache/hy3dgen')
-        model_path = os.path.expanduser(os.path.join(base_dir, model_path, subfolder))
-        print('Try to load model from local path:', model_path)
         if not os.path.exists(model_path):
-            print('Model path not exists, try to download from huggingface')
-            try:
-                import huggingface_hub
-                # download from huggingface
-                path = huggingface_hub.snapshot_download(repo_id=original_model_path)
-                model_path = os.path.join(path, subfolder)
-            except ImportError:
-                logger.warning(
-                    "You need to install HuggingFace Hub to load models from the hub."
-                )
-                raise RuntimeError(f"Model path {model_path} not found")
-            except Exception as e:
-                raise e
-
+            # try local path
+            base_dir = os.environ.get('HY3DGEN_MODELS', '~/.cache/hy3dgen')
+            model_path = os.path.expanduser(os.path.join(base_dir, model_path, subfolder))
+            if not os.path.exists(model_path):
+                try:
+                    import huggingface_hub
+                    # download from huggingface
+                    path = huggingface_hub.snapshot_download(repo_id=original_model_path)
+                    model_path = os.path.join(path, subfolder)
+                except ImportError:
+                    logger.warning(
+                        "You need to install HuggingFace Hub to load models from the hub."
+                    )
+                    raise RuntimeError(f"Model path {model_path} not found")
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model path {original_model_path} not found")
 
@@ -563,7 +557,6 @@ class Hunyuan3DDiTFlowMatchingPipeline(Hunyuan3DDiTPipeline):
         if hasattr(self.model, 'guidance_embed') and \
             self.model.guidance_embed is True:
             guidance = torch.tensor([guidance_scale] * batch_size, device=device, dtype=dtype)
-            print(f'Using guidance embed with scale {guidance_scale}')
 
         for i, t in enumerate(tqdm(timesteps, disable=not enable_pbar, desc="Diffusion Sampling:")):
             # expand the latents if we are doing classifier free guidance
