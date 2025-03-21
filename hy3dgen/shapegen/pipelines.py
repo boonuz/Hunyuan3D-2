@@ -216,7 +216,10 @@ class Hunyuan3DDiTPipeline:
                 try:
                     import huggingface_hub
                     # download from huggingface
-                    path = huggingface_hub.snapshot_download(repo_id=original_model_path)
+                    path = huggingface_hub.snapshot_download(
+                        repo_id=original_model_path, 
+                        revision="c03ca1e94362e588d38396000bfe08beefce7077"
+                    )
                     model_path = os.path.join(path, subfolder)
                 except ImportError:
                     logger.warning(
