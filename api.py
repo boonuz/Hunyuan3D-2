@@ -423,7 +423,12 @@ if __name__ == '__main__':
 
     rmbg_worker = BackgroundRemover()
     i23d_worker = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-        'tencent/Hunyuan3D-2', device="cpu", use_safetensors=True)
+        'tencent/Hunyuan3D-2mini',
+        subfolder='hunyuan3d-dit-v2-mini',
+        use_safetensors=True,
+        variant='fp16',
+        device='cuda'
+    )
 
     floater_remove_worker = FloaterRemover()
     degenerate_face_remove_worker = DegenerateFaceRemover()
